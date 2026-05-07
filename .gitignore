@@ -1,0 +1,12 @@
+# 后端相关
+B/backend/.env
+B/backend/__pycache__/
+*.pyc
+
+# 前端相关（从原有的复制或移动过来）
+A/frontend/node_modules/
+A/frontend/dist/
+
+# 系统相关
+.DS_Store
+.vscode/
