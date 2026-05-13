@@ -136,6 +136,7 @@ onMounted(() => {
   border: 1px solid #000000;
   background: #ffffff;
   font-size: 14px;
+  outline: none;
 }
 
 .add-form input::placeholder {
