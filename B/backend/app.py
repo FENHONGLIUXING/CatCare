@@ -115,6 +115,11 @@ def delete_cat(cat_id):
     if not cat:
         return jsonify({"error": "猫咪不存在"}), 404
 
+    if cat.image_url:
+        image_path = os.path.join(app.root_path, 'static', 'uploads', os.path.basename(cat.image_url))
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
     FeedingRecord.query.filter_by(cat_id=cat_id).delete()
     db.session.delete(cat)
     db.session.commit()
@@ -123,7 +128,7 @@ def delete_cat(cat_id):
 
 @app.route('/api/feeding', methods=['GET'])
 def get_feeding_records():
-    records = FeedingRecord.query.all()
+    records = FeedingRecord.query.order_by(FeedingRecord.time.desc()).limit(100).all()
     result = []
     for record in records:
         result.append({
@@ -136,10 +141,22 @@ def get_feeding_records():
 
 @app.route('/api/cats-with-records', methods=['GET'])
 def get_cats_with_records():
+    from datetime import datetime, date, timedelta
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    
     cats = Cat.query.all()
     result = []
     for cat in cats:
-        records = FeedingRecord.query.filter_by(cat_id=cat.id).order_by(FeedingRecord.time.desc()).limit(3).all()
+        records = FeedingRecord.query.filter(
+            FeedingRecord.cat_id == cat.id,
+            FeedingRecord.time >= datetime(today.year, today.month, today.day),
+            FeedingRecord.time < datetime(tomorrow.year, tomorrow.month, tomorrow.day)
+        ).order_by(FeedingRecord.time.desc()).limit(3).all()
+        
+        if not records:
+            continue
+            
         feeding_list = []
         for record in records:
             feeding_list.append({
