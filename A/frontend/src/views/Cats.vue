@@ -10,6 +10,12 @@ const newCat = ref({
 })
 const selectedFile = ref(null)
 const fileInputRef = ref(null)
+const editingId = ref(null)
+const editForm = ref({
+  name: '',
+  description: '',
+  status: ''
+})
 
 const getCats = async () => {
   try {
@@ -30,7 +36,7 @@ const triggerFileInput = () => {
 
 const addCat = async () => {
   if (!newCat.value.name.trim()) return
-  
+
   const formData = new FormData()
   formData.append('name', newCat.value.name)
   formData.append('description', newCat.value.description || '')
@@ -38,7 +44,7 @@ const addCat = async () => {
   if (selectedFile.value) {
     formData.append('file', selectedFile.value)
   }
-  
+
   try {
     await axios.post('http://127.0.0.1:5000/api/cats', formData, {
       headers: {
@@ -50,6 +56,46 @@ const addCat = async () => {
     getCats()
   } catch (error) {
     console.error('添加猫咪失败:', error)
+  }
+}
+
+const startEdit = (cat) => {
+  editingId.value = cat.id
+  editForm.value = {
+    name: cat.name,
+    description: cat.description || '',
+    status: cat.status
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+  editForm.value = { name: '', description: '', status: '' }
+}
+
+const saveEdit = async (catId) => {
+  const formData = new FormData()
+  formData.append('name', editForm.value.name)
+  formData.append('description', editForm.value.description)
+  formData.append('status', editForm.value.status)
+
+  try {
+    await axios.put(`http://127.0.0.1:5000/api/cats/${catId}`, formData)
+    editingId.value = null
+    getCats()
+  } catch (error) {
+    console.error('更新猫咪失败:', error)
+  }
+}
+
+const deleteCat = async (catId) => {
+  if (!confirm('确定要删除这只猫咪吗？')) return
+
+  try {
+    await axios.delete(`http://127.0.0.1:5000/api/cats/${catId}`)
+    getCats()
+  } catch (error) {
+    console.error('删除猫咪失败:', error)
   }
 }
 
@@ -66,15 +112,15 @@ onMounted(() => {
     </header>
 
     <div class="add-form">
-      <input 
-        v-model="newCat.name" 
-        type="text" 
+      <input
+        v-model="newCat.name"
+        type="text"
         placeholder="猫咪名字"
         class="form-input"
       />
-      <input 
-        v-model="newCat.description" 
-        type="text" 
+      <input
+        v-model="newCat.description"
+        type="text"
         placeholder="描述（可选）"
         class="form-input"
       />
@@ -83,10 +129,10 @@ onMounted(() => {
         <option value="毕业">毕业</option>
       </select>
       <div class="upload-wrapper">
-        <input 
+        <input
           ref="fileInputRef"
-          type="file" 
-          accept="image/*" 
+          type="file"
+          accept="image/*"
           @change="handleFileChange"
           class="file-input-hidden"
         />
@@ -105,11 +151,37 @@ onMounted(() => {
         <div class="cat-image" v-if="cat.image_url">
           <img :src="'http://127.0.0.1:5000' + cat.image_url" :alt="cat.name" />
         </div>
-        <div class="cat-info">
+        <div class="cat-info" v-if="editingId !== cat.id">
           <h3>{{ cat.name }}</h3>
           <p v-if="cat.description">{{ cat.description }}</p>
         </div>
-        <span class="status">{{ cat.status }}</span>
+        <div class="edit-form" v-if="editingId === cat.id">
+          <input
+            v-model="editForm.name"
+            type="text"
+            class="edit-input"
+          />
+          <input
+            v-model="editForm.description"
+            type="text"
+            class="edit-input"
+          />
+          <select v-model="editForm.status" class="edit-select">
+            <option value="在校">在校</option>
+            <option value="毕业">毕业</option>
+          </select>
+        </div>
+        <div class="actions">
+          <span class="status" v-if="editingId !== cat.id">{{ cat.status }}</span>
+          <template v-if="editingId === cat.id">
+            <button type="button" class="action-btn save" @click="saveEdit(cat.id)">保存</button>
+            <button type="button" class="action-btn cancel" @click="cancelEdit">取消</button>
+          </template>
+          <template v-else>
+            <button type="button" class="action-btn" @click="startEdit(cat)">编辑</button>
+            <button type="button" class="action-btn" @click="deleteCat(cat.id)">删除</button>
+          </template>
+        </div>
       </div>
     </div>
   </div>
@@ -117,22 +189,22 @@ onMounted(() => {
 
 <style scoped>
 .page {
-  max-width: 600px;
+  max-width: 700px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 60px 24px;
 }
 
 .header {
-  margin-bottom: 40px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #000000;
+  margin-bottom: 48px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #000000;
 }
 
 .back {
   font-size: 14px;
   color: #000000;
   text-decoration: none;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   display: inline-block;
 }
 
@@ -143,12 +215,13 @@ onMounted(() => {
 .header h1 {
   font-size: 24px;
   font-weight: 700;
+  letter-spacing: 0.05em;
 }
 
 .add-form {
   display: flex;
-  gap: 8px;
-  margin-bottom: 30px;
+  gap: 10px;
+  margin-bottom: 48px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -158,7 +231,7 @@ onMounted(() => {
   flex: 1;
   min-width: 100px;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 14px;
   border: 1px solid #000000;
   background: #ffffff;
   font-size: 14px;
@@ -193,7 +266,7 @@ onMounted(() => {
 .upload-btn {
   width: 100%;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 14px;
   border: 1px solid #000000;
   background: #ffffff;
   color: #000000;
@@ -235,14 +308,14 @@ onMounted(() => {
 }
 
 .cat-list {
-  border-top: 1px solid #eeeeee;
+  border-top: 1px solid #000000;
 }
 
 .cat-item {
   display: flex;
   gap: 20px;
   align-items: flex-start;
-  padding: 20px 0;
+  padding: 24px 0;
   border-bottom: 1px solid #eeeeee;
 }
 
@@ -251,36 +324,94 @@ onMounted(() => {
 }
 
 .cat-image img {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   object-fit: cover;
-  border: 2px solid #000000;
+  border: 1px solid #000000;
 }
 
 .cat-info {
   flex: 1;
+  min-width: 0;
 }
 
 .cat-info h3 {
   font-size: 16px;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .cat-info p {
   font-size: 14px;
   color: #666666;
+  margin: 0;
+}
+
+.edit-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.edit-input,
+.edit-select {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #000000;
+  background: #ffffff;
+  font-size: 14px;
+  font-family: inherit;
+  border-radius: 0;
+  outline: none;
+}
+
+.edit-input::placeholder {
+  color: #999999;
+}
+
+.actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .status {
-  flex-shrink: 0;
   font-size: 12px;
   padding: 4px 12px;
   border: 1px solid #000000;
+  margin-bottom: 4px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #666666;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
+.action-btn:hover {
+  color: #000000;
+}
+
+.action-btn.save {
+  color: #000000;
+  font-weight: 600;
+}
+
+.action-btn.cancel {
+  color: #999999;
 }
 
 .empty {
-  padding: 60px 0;
+  padding: 80px 0;
   text-align: center;
   color: #999999;
   font-size: 14px;

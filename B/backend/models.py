@@ -2,11 +2,6 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-class GlobalCounter(db.Model):
-    __tablename__ = 'global_counter'
-    id = db.Column(db.Integer, primary_key=True)
-    count_value = db.Column(db.Integer, default=0)
-
 class Cat(db.Model):
     __tablename__ = 'cats'
     id = db.Column(db.Integer, primary_key=True)

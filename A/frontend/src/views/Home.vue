@@ -2,28 +2,29 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
-const count = ref(0)
+const catsWithRecords = ref([])
 
-const getInitialCount = async () => {
+const getCatsWithRecords = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:5000/api/get_count')
-    count.value = response.data.count
+    const response = await axios.get('http://127.0.0.1:5000/api/cats-with-records')
+    catsWithRecords.value = response.data.filter(cat => cat.feedings && cat.feedings.length > 0)
   } catch (error) {
-    console.error('获取计数失败:', error)
+    console.error('获取数据失败:', error)
   }
 }
 
-const addCount = async () => {
-  try {
-    const response = await axios.post('http://127.0.0.1:5000/api/increment')
-    count.value = response.data.new_count
-  } catch (error) {
-    console.error('增加计数失败:', error)
-  }
+const formatTime = (timeStr) => {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${month}/${day} ${hours}:${minutes}`
 }
 
 onMounted(() => {
-  getInitialCount()
+  getCatsWithRecords()
 })
 </script>
 
@@ -34,114 +35,195 @@ onMounted(() => {
       <p>校园猫咪社区</p>
     </header>
 
-    <div class="counter-box">
-      <p class="label">全校累计点击</p>
-      <p class="count">{{ count }}</p>
-      <button @click="addCount">点我加 1</button>
-    </div>
-
     <nav class="nav-cards">
       <router-link to="/cats" class="card">
-        <h2>猫咪档案</h2>
-        <p>查看和管理猫咪信息</p>
+        <span>猫咪档案</span>
       </router-link>
       <router-link to="/feeding" class="card">
-        <h2>投喂记录</h2>
-        <p>记录猫咪投喂情况</p>
+        <span>投喂记录</span>
       </router-link>
     </nav>
+
+    <section class="latest">
+      <h2>最新动态</h2>
+      <div class="cards-grid">
+        <div v-if="catsWithRecords.length === 0" class="empty">
+          暂无喂养记录
+        </div>
+        <div v-for="cat in catsWithRecords" :key="cat.id" class="cat-card">
+          <div class="card-header">
+            <div class="cat-avatar" v-if="cat.image_url">
+              <img :src="'http://127.0.0.1:5000' + cat.image_url" :alt="cat.name" />
+            </div>
+            <div class="cat-avatar placeholder" v-else>
+              <span>?</span>
+            </div>
+            <h3>{{ cat.name }}</h3>
+          </div>
+          <div class="card-body">
+            <div v-for="feeding in cat.feedings" :key="feeding.id" class="feeding-item">
+              <span class="feeding-time">{{ formatTime(feeding.time) }}</span>
+              <span class="feeding-food">{{ feeding.food_type }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
 .home {
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
-  padding: 60px 20px;
+  padding: 80px 20px;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 60px;
-  border-bottom: 2px solid #000000;
+  margin-bottom: 80px;
   padding-bottom: 30px;
+  border-bottom: 1px solid #000000;
 }
 
 .header h1 {
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 42px;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
 }
 
 .header p {
   font-size: 14px;
+  letter-spacing: 0.1em;
   color: #666666;
-}
-
-.counter-box {
-  text-align: center;
-  margin-bottom: 60px;
-  padding: 40px;
-  border: 2px solid #000000;
-}
-
-.counter-box .label {
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-.counter-box .count {
-  font-size: 48px;
-  font-weight: 700;
-  margin-bottom: 30px;
-}
-
-.counter-box button {
-  background: #000000;
-  color: #ffffff;
-  border: none;
-  padding: 14px 40px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.counter-box button:hover {
-  background: #333333;
 }
 
 .nav-cards {
   display: flex;
-  gap: 20px;
+  gap: 16px;
+  margin-bottom: 80px;
 }
 
 .card {
   flex: 1;
-  padding: 40px 30px;
-  border: 2px solid #000000;
+  padding: 28px 20px;
+  border: 1px solid #000000;
   text-decoration: none;
-  color: #000000;
+  color: #ffffff;
+  background: #000000;
   text-align: center;
-  transition: all 0.2s;
+  transition: all 0.3s;
+  font-size: 16px;
+  letter-spacing: 0.05em;
 }
 
 .card:hover {
-  background: #000000;
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
 }
 
-.card:hover h2,
-.card:hover p {
-  color: #ffffff;
+.latest {
+  border-top: 1px solid #000000;
+  padding-top: 30px;
 }
 
-.card h2 {
-  font-size: 18px;
+.latest h2 {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.cat-card {
+  border: 1px solid #000000;
+  transition: all 0.2s;
+}
+
+.cat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 4px 4px 0px #000000;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.cat-avatar {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #000000;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cat-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cat-avatar.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  color: #999999;
+  font-size: 20px;
+}
+
+.card-header h3 {
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin: 0;
 }
 
-.card p {
+.card-body {
+  padding: 12px 16px;
+  min-height: 108px;
+}
+
+.feeding-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #eeeeee;
+}
+
+.feeding-item:last-child {
+  border-bottom: none;
+}
+
+.feeding-time {
+  font-size: 12px;
+  color: #999999;
+}
+
+.feeding-food {
   font-size: 13px;
-  color: #666666;
+  color: #000000;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: 60px;
+  text-align: center;
+  color: #999999;
+  font-size: 14px;
+  border: 1px dashed #dddddd;
 }
 </style>

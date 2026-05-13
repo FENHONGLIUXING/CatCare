@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
 
-from models import db, GlobalCounter, Cat, FeedingRecord
+from models import db, Cat, FeedingRecord
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -22,24 +22,6 @@ def test_connection():
         "message": "后端已成功读取 .env 并启动！",
         "database_target": app.config['MYSQL_DB']
     })
-
-@app.route('/api/get_count', methods=['GET'])
-def get_count():
-    counter = GlobalCounter.query.first()
-    if not counter:
-        counter = GlobalCounter(count_value=0)
-        db.session.add(counter)
-        db.session.commit()
-    return jsonify({"count": counter.count_value})
-
-@app.route('/api/increment', methods=['POST'])
-def increment():
-    counter = GlobalCounter.query.first()
-    if counter:
-        counter.count_value += 1
-        db.session.commit()
-        return jsonify({"new_count": counter.count_value})
-    return jsonify({"error": "Counter not found"}), 404
 
 @app.route('/api/cats', methods=['GET'])
 def get_cats():
@@ -91,6 +73,54 @@ def add_cat():
         'image_url': new_cat.image_url
     }), 201
 
+@app.route('/api/cats/<int:cat_id>', methods=['PUT'])
+def update_cat(cat_id):
+    cat = Cat.query.get(cat_id)
+    if not cat:
+        return jsonify({"error": "猫咪不存在"}), 404
+
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    status = request.form.get('status', '')
+
+    if name:
+        cat.name = name
+    if description is not None:
+        cat.description = description
+    if status:
+        cat.status = status
+
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            ext = os.path.splitext(file.filename)[1]
+            filename = str(uuid.uuid4()) + ext
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            cat.image_url = f'/static/uploads/{filename}'
+
+    db.session.commit()
+
+    return jsonify({
+        'id': cat.id,
+        'name': cat.name,
+        'description': cat.description,
+        'status': cat.status,
+        'image_url': cat.image_url
+    })
+
+@app.route('/api/cats/<int:cat_id>', methods=['DELETE'])
+def delete_cat(cat_id):
+    cat = Cat.query.get(cat_id)
+    if not cat:
+        return jsonify({"error": "猫咪不存在"}), 404
+
+    FeedingRecord.query.filter_by(cat_id=cat_id).delete()
+    db.session.delete(cat)
+    db.session.commit()
+
+    return jsonify({"message": "删除成功"})
+
 @app.route('/api/feeding', methods=['GET'])
 def get_feeding_records():
     records = FeedingRecord.query.all()
@@ -101,6 +131,27 @@ def get_feeding_records():
             'cat_id': record.cat_id,
             'food_type': record.food_type,
             'time': record.time.isoformat() if record.time else None
+        })
+    return jsonify(result)
+
+@app.route('/api/cats-with-records', methods=['GET'])
+def get_cats_with_records():
+    cats = Cat.query.all()
+    result = []
+    for cat in cats:
+        records = FeedingRecord.query.filter_by(cat_id=cat.id).order_by(FeedingRecord.time.desc()).limit(3).all()
+        feeding_list = []
+        for record in records:
+            feeding_list.append({
+                'id': record.id,
+                'food_type': record.food_type,
+                'time': record.time.isoformat() if record.time else None
+            })
+        result.append({
+            'id': cat.id,
+            'name': cat.name,
+            'image_url': cat.image_url,
+            'feedings': feeding_list
         })
     return jsonify(result)
 
