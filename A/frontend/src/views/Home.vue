@@ -1,7 +1,11 @@
 <script setup>
-// 导入 Vue 组合式 API 和 Axios
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { useRouter } from 'vue-router'
+import request from '../utils/request'
+import { useAuthStore } from '../stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 // 响应式数据：存储猫咪及其今日喂养记录
 const catsWithRecords = ref([])
@@ -10,7 +14,7 @@ const catsWithRecords = ref([])
 const getCatsWithRecords = async () => {
   try {
     // 调用后端API获取数据
-    const response = await axios.get('http://127.0.0.1:5000/api/cats-with-records')
+    const response = await request.get('/api/cats-with-records')
     // 过滤掉没有喂养记录的猫咪
     catsWithRecords.value = response.data.filter(cat => cat.feedings && cat.feedings.length > 0)
   } catch (error) {
@@ -29,7 +33,11 @@ const formatTime = (timeStr) => {
   return `${month}/${day} ${hours}:${minutes}`
 }
 
-// 组件挂载时初始化数据
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
+}
+
 onMounted(() => {
   getCatsWithRecords()
 })
@@ -38,7 +46,11 @@ onMounted(() => {
 <template>
   <!-- 首页主容器 -->
   <div class="home">
-    <!-- 页头：标题区域 -->
+    <div class="user-bar">
+      <span class="user-info">👤 {{ authStore.username }}</span>
+      <button class="logout-btn" @click="handleLogout">退出登录</button>
+    </div>
+
     <header class="header">
       <h1>CatCare</h1>
       <p>校园猫咪社区</p>
@@ -90,11 +102,39 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 首页主容器：居中限宽 */
 .home {
   max-width: 800px;
   margin: 0 auto;
-  padding: 80px 20px;
+  padding: 40px 20px 80px;
+}
+
+.user-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.user-info {
+  font-size: 13px;
+  color: #666666;
+}
+
+.logout-btn {
+  padding: 6px 14px;
+  border: 1px solid #000000;
+  background: #000000;
+  color: #ffffff;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: #ffffff;
+  color: #000000;
 }
 
 /* 页头样式 */

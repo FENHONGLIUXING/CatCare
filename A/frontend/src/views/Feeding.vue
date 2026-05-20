@@ -1,7 +1,16 @@
 <script setup>
-// 导入 Vue 组合式 API 和 Axios
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { useRouter } from 'vue-router'
+import request from '../utils/request'
+import { useAuthStore } from '../stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
+}
 
 // 响应式数据：猫咪列表、投喂记录列表、新记录表单数据
 const cats = ref([])
@@ -12,20 +21,18 @@ const newRecord = ref({
   time: ''         // 投喂时间（可选，默认当前时间）
 })
 
-// 获取猫咪列表（用于下拉选择）
 const getCats = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:5000/api/cats')
+    const response = await request.get('/api/cats')
     cats.value = response.data
   } catch (error) {
     console.error('获取猫咪列表失败:', error)
   }
 }
 
-// 获取最近100条投喂记录（按时间倒序）
 const getRecords = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:5000/api/feeding')
+    const response = await request.get('/api/feeding')
     records.value = response.data
   } catch (error) {
     console.error('获取投喂记录失败:', error)
@@ -38,7 +45,7 @@ const addRecord = async () => {
   if (!newRecord.value.cat_id || !newRecord.value.food_type) return
   
   try {
-    await axios.post('http://127.0.0.1:5000/api/feeding', newRecord.value)
+    await request.post('/api/feeding', newRecord.value)
     // 重置表单
     newRecord.value = { cat_id: '', food_type: '', time: '' }
     // 刷新记录列表
@@ -66,7 +73,10 @@ onMounted(() => {
   <div class="page">
     <!-- 页头：返回链接 + 标题 -->
     <header class="header">
-      <router-link to="/" class="back">← 返回</router-link>
+      <div class="header-row">
+        <router-link to="/" class="back">← 返回</router-link>
+        <button class="logout-btn" @click="handleLogout">退出登录</button>
+      </div>
       <h1>投喂记录</h1>
     </header>
 
@@ -126,17 +136,37 @@ onMounted(() => {
   border-bottom: 2px solid #000000;
 }
 
-/* 返回链接 */
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .back {
   font-size: 14px;
   color: #000000;
   text-decoration: none;
-  margin-bottom: 10px;
-  display: inline-block;
 }
 
 .back:hover {
   text-decoration: underline;
+}
+
+.logout-btn {
+  padding: 4px 12px;
+  border: 1px solid #000000;
+  background: #ffffff;
+  color: #000000;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: #000000;
+  color: #ffffff;
 }
 
 .header h1 {

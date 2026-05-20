@@ -1,6 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { useRouter } from 'vue-router'
+import request from '../utils/request'
+import { useAuthStore } from '../stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
+}
 
 const cats = ref([])
 const newCat = ref({
@@ -19,7 +29,7 @@ const editForm = ref({
 
 const getCats = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:5000/api/cats')
+    const response = await request.get('/api/cats')
     cats.value = response.data
   } catch (error) {
     console.error('获取猫咪列表失败:', error)
@@ -46,7 +56,7 @@ const addCat = async () => {
   }
 
   try {
-    await axios.post('http://127.0.0.1:5000/api/cats', formData, {
+    await request.post('/api/cats', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -80,7 +90,7 @@ const saveEdit = async (catId) => {
   formData.append('status', editForm.value.status)
 
   try {
-    await axios.put(`http://127.0.0.1:5000/api/cats/${catId}`, formData)
+    await request.put(`/api/cats/${catId}`, formData)
     editingId.value = null
     getCats()
   } catch (error) {
@@ -92,7 +102,7 @@ const deleteCat = async (catId) => {
   if (!confirm('确定要删除这只猫咪吗？')) return
 
   try {
-    await axios.delete(`http://127.0.0.1:5000/api/cats/${catId}`)
+    await request.delete(`/api/cats/${catId}`)
     getCats()
   } catch (error) {
     console.error('删除猫咪失败:', error)
@@ -107,7 +117,10 @@ onMounted(() => {
 <template>
   <div class="page">
     <header class="header">
-      <router-link to="/" class="back">← 返回</router-link>
+      <div class="header-row">
+        <router-link to="/" class="back">← 返回</router-link>
+        <button class="logout-btn" @click="handleLogout">退出登录</button>
+      </div>
       <h1>猫咪档案</h1>
     </header>
 
@@ -200,16 +213,37 @@ onMounted(() => {
   border-bottom: 1px solid #000000;
 }
 
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .back {
   font-size: 14px;
   color: #000000;
   text-decoration: none;
-  margin-bottom: 12px;
-  display: inline-block;
 }
 
 .back:hover {
   text-decoration: underline;
+}
+
+.logout-btn {
+  padding: 4px 12px;
+  border: 1px solid #000000;
+  background: #ffffff;
+  color: #000000;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: #000000;
+  color: #ffffff;
 }
 
 .header h1 {

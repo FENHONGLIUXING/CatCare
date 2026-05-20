@@ -19,5 +19,9 @@ class Config:
     # 禁用追踪对象修改，提升性能
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # 安全秘钥
+    # 安全秘钥（用于 JWT 签名）
     SECRET_KEY = os.getenv('SECRET_KEY', 'bintian-dev-key')
+    # JWT 算法
+    JWT_ALGORITHM = 'HS256'
+    # JWT 过期时间（秒）- 24小时
+    JWT_EXPIRATION_SECONDS = 24 * 60 * 60

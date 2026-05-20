@@ -4,6 +4,9 @@ from flask_migrate import Migrate
 from config import Config
 import os
 import uuid
+import jwt
+from datetime import datetime, timedelta
+from functools import wraps
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -15,6 +18,62 @@ db.init_app(app)
 migrate = Migrate(app, db)
 CORS(app)
 
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        auth_header = request.headers.get('Authorization')
+        
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+        
+        if not token:
+            return jsonify({"error": "缺少 Token"}), 401
+        
+        try:
+            data = jwt.decode(
+                token,
+                app.config['SECRET_KEY'],
+                algorithms=[app.config['JWT_ALGORITHM']]
+            )
+            current_user = data.get('username')
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token 已过期"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Token 无效"}), 401
+        
+        return f(current_user, *args, **kwargs)
+    
+    return decorated
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({"error": "缺少用户名或密码"}), 400
+    
+    username = data['username']
+    password = data['password']
+    
+    if username == 'admin' and password == '123456':
+        payload = {
+            'username': username,
+            'exp': datetime.utcnow() + timedelta(seconds=app.config['JWT_EXPIRATION_SECONDS'])
+        }
+        token = jwt.encode(
+            payload,
+            app.config['SECRET_KEY'],
+            algorithm=app.config['JWT_ALGORITHM']
+        )
+        return jsonify({
+            "message": "登录成功",
+            "token": token,
+            "username": username,
+            "expires_in": app.config['JWT_EXPIRATION_SECONDS']
+        }), 200
+    
+    return jsonify({"error": "用户名或密码错误"}), 401
+
 @app.route('/api/test', methods=['GET'])
 def test_connection():
     return jsonify({
@@ -24,7 +83,8 @@ def test_connection():
     })
 
 @app.route('/api/cats', methods=['GET'])
-def get_cats():
+@token_required
+def get_cats(current_user):
     cats = Cat.query.all()
     result = []
     for cat in cats:
@@ -38,7 +98,8 @@ def get_cats():
     return jsonify(result)
 
 @app.route('/api/cats', methods=['POST'])
-def add_cat():
+@token_required
+def add_cat(current_user):
     name = request.form.get('name')
     description = request.form.get('description', '')
     status = request.form.get('status', '在校')
@@ -74,7 +135,8 @@ def add_cat():
     }), 201
 
 @app.route('/api/cats/<int:cat_id>', methods=['PUT'])
-def update_cat(cat_id):
+@token_required
+def update_cat(current_user, cat_id):
     cat = Cat.query.get(cat_id)
     if not cat:
         return jsonify({"error": "猫咪不存在"}), 404
@@ -110,7 +172,8 @@ def update_cat(cat_id):
     })
 
 @app.route('/api/cats/<int:cat_id>', methods=['DELETE'])
-def delete_cat(cat_id):
+@token_required
+def delete_cat(current_user, cat_id):
     cat = Cat.query.get(cat_id)
     if not cat:
         return jsonify({"error": "猫咪不存在"}), 404
@@ -140,7 +203,8 @@ def get_feeding_records():
     return jsonify(result)
 
 @app.route('/api/cats-with-records', methods=['GET'])
-def get_cats_with_records():
+@token_required
+def get_cats_with_records(current_user):
     from datetime import datetime, date, timedelta
     today = date.today()
     tomorrow = today + timedelta(days=1)
@@ -173,7 +237,8 @@ def get_cats_with_records():
     return jsonify(result)
 
 @app.route('/api/feeding', methods=['POST'])
-def add_feeding_record():
+@token_required
+def add_feeding_record(current_user):
     from datetime import datetime
     data = request.get_json()
     if not data or 'cat_id' not in data or 'food_type' not in data:
